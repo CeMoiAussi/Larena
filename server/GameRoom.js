@@ -13,7 +13,7 @@ export default class GameRoom {
     this.io = io;
     this.players = new Map();
     this.tickInterval = null;
-    this.tickRate = 50;
+    this.tickRate = 33;
   }
 
   addPlayer(id, socketId, name, classType) {
@@ -141,6 +141,7 @@ export default class GameRoom {
         color: p.color,
         x: Math.round(p.x),
         y: Math.round(p.y),
+        speed: p.speed,
         hp: Math.round(p.hp),
         maxHp: p.maxHp,
         alive: p.alive,

@@ -9,9 +9,9 @@ export default class GameEngine {
     canvas.height = ARENA_H;
     this.players = {};
     this.myId = null;
-    this.lastUpdate = 0;
     this.running = false;
     this.onClick = null;
+    this.wasDead = false;
 
     canvas.addEventListener('click', (e) => {
       if (!this.onClick) return;
@@ -27,13 +27,34 @@ export default class GameEngine {
   setState(players) {
     for (const id in players) {
       const server = players[id];
-      const local = this.players[id];
+      let local = this.players[id];
+
       if (!local) {
         this.players[id] = {
           ...server,
           renderX: server.x,
           renderY: server.y,
+          targetX: null,
+          targetY: null,
         };
+        continue;
+      }
+
+      if (id === this.myId) {
+        const wasAlive = local.alive;
+        local.hp = server.hp;
+        local.maxHp = server.maxHp;
+        local.alive = server.alive;
+        local.kills = server.kills;
+        local.deaths = server.deaths;
+        local.speed = server.speed;
+
+        if (!wasAlive && server.alive) {
+          local.renderX = server.x;
+          local.renderY = server.y;
+          local.targetX = null;
+          local.targetY = null;
+        }
       } else {
         local.targetX = server.x;
         local.targetY = server.y;
@@ -45,8 +66,10 @@ export default class GameEngine {
         local.class = server.class;
         local.color = server.color;
         local.name = server.name;
+        local.speed = server.speed;
       }
     }
+
     for (const id in this.players) {
       if (!players[id]) {
         delete this.players[id];
@@ -58,27 +81,57 @@ export default class GameEngine {
     this.myId = id;
   }
 
+  setLocalTarget(x, y) {
+    const me = this.players[this.myId];
+    if (me && me.alive) {
+      me.targetX = x;
+      me.targetY = y;
+    }
+  }
+
   start() {
     this.running = true;
-    const loop = () => {
+    let lastTime = performance.now();
+    const loop = (time) => {
       if (!this.running) return;
-      this.update();
+      const dt = Math.min((time - lastTime) / 1000, 0.05);
+      lastTime = time;
+      this.update(dt);
       this.draw();
       requestAnimationFrame(loop);
     };
-    loop();
+    requestAnimationFrame(loop);
   }
 
   stop() {
     this.running = false;
   }
 
-  update() {
+  update(dt) {
     for (const id in this.players) {
       const p = this.players[id];
-      if (p.targetX !== undefined) {
-        p.renderX += (p.targetX - p.renderX) * 0.15;
-        p.renderY += (p.targetY - p.renderY) * 0.15;
+      if (p.targetX === null || p.targetY === null || !p.alive) continue;
+
+      const dx = p.targetX - p.renderX;
+      const dy = p.targetY - p.renderY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 2) {
+        p.renderX = p.targetX;
+        p.renderY = p.targetY;
+        if (id === this.myId) {
+          p.targetX = null;
+          p.targetY = null;
+        }
+        continue;
+      }
+
+      if (id === this.myId) {
+        const step = Math.min(p.speed * 60 * dt, dist);
+        p.renderX += (dx / dist) * step;
+        p.renderY += (dy / dist) * step;
+      } else {
+        p.renderX += (dx / dist) * Math.min(dist * 0.25, p.speed * 60 * dt * 3);
       }
     }
   }
@@ -101,8 +154,8 @@ export default class GameEngine {
 
   drawPlayer(p, isMe) {
     const ctx = this.ctx;
-    const x = p.renderX;
-    const y = p.renderY;
+    const x = Math.round(p.renderX);
+    const y = Math.round(p.renderY);
     const r = 16;
 
     ctx.save();
