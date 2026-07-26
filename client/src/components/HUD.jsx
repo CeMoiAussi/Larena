@@ -40,6 +40,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
+    pointerEvents: 'none',
   },
   myStats: {
     background: 'rgba(0,0,0,0.7)',

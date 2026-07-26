@@ -17,6 +17,7 @@ export default function Battlefield({ network }) {
       network.sendInput(x, y);
       engine.setLocalTarget(x, y);
     };
+    engine.onSendInput = (x, y) => network.sendInput(x, y);
 
     network.onJoined = ({ playerId, state }) => {
       engine.setMyId(playerId);

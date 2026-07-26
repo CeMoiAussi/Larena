@@ -12,6 +12,9 @@ export default class GameEngine {
     this.myId = null;
     this.running = false;
     this.onClick = null;
+    this.onSendInput = null;
+    this.keys = { w: false, a: false, s: false, d: false };
+    this.keyboardActive = false;
 
     canvas.addEventListener('click', (e) => {
       if (!this.onClick) return;
@@ -20,8 +23,54 @@ export default class GameEngine {
       const scaleY = canvas.height / rect.height;
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
+      this.keyboardActive = false;
       this.onClick(x, y);
     });
+
+    document.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+        e.preventDefault();
+        if (k === 'w' || k === 'arrowup') this.keys.w = true;
+        if (k === 's' || k === 'arrowdown') this.keys.s = true;
+        if (k === 'a' || k === 'arrowleft') this.keys.a = true;
+        if (k === 'd' || k === 'arrowright') this.keys.d = true;
+        this.keyboardActive = true;
+        this.updateKeyboardTarget();
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') this.keys.w = false;
+      if (k === 's' || k === 'arrowdown') this.keys.s = false;
+      if (k === 'a' || k === 'arrowleft') this.keys.a = false;
+      if (k === 'd' || k === 'arrowright') this.keys.d = false;
+      if (this.keys.w || this.keys.a || this.keys.s || this.keys.d) {
+        this.updateKeyboardTarget();
+      } else {
+        this.keyboardActive = false;
+      }
+    });
+  }
+
+  updateKeyboardTarget() {
+    const me = this.players[this.myId];
+    if (!me || !me.alive) return;
+    let dx = 0, dy = 0;
+    if (this.keys.w) dy -= 1;
+    if (this.keys.s) dy += 1;
+    if (this.keys.a) dx -= 1;
+    if (this.keys.d) dx += 1;
+    if (dx === 0 && dy === 0) return;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    dx /= len;
+    dy /= len;
+    me.targetX = me.renderX + dx * 10000;
+    me.targetY = me.renderY + dy * 10000;
+    if (this.onSendInput) {
+      this.onSendInput(me.targetX, me.targetY);
+    }
   }
 
   setState(players, projectiles) {
@@ -131,6 +180,10 @@ export default class GameEngine {
   }
 
   update(dt) {
+    if (this.keyboardActive) {
+      this.updateKeyboardTarget();
+    }
+
     for (const id in this.players) {
       const p = this.players[id];
       if (p.targetX === null || p.targetY === null || !p.alive) continue;
