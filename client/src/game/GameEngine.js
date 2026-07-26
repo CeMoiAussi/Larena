@@ -115,17 +115,6 @@ export default class GameEngine {
           local.renderY = server.y;
           local.targetX = null;
           local.targetY = null;
-        } else if (server.alive) {
-          const dx = server.x - local.renderX;
-          const dy = server.y - local.renderY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > 2) {
-            local.renderX += dx * 0.1;
-            local.renderY += dy * 0.1;
-          } else {
-            local.renderX = server.x;
-            local.renderY = server.y;
-          }
         }
       } else {
         local.targetX = server.x;
