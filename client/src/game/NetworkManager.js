@@ -26,8 +26,8 @@ export default class NetworkManager {
         resolve({ playerId, state });
       });
 
-      this.socket.on('state', ({ players, timestamp }) => {
-        if (this.onState) this.onState(players, timestamp);
+      this.socket.on('state', ({ players, projectiles, timestamp }) => {
+        if (this.onState) this.onState(players, projectiles, timestamp);
       });
 
       this.socket.on('player_joined', ({ player }) => {

@@ -25,8 +25,8 @@ export default function Battlefield({ network }) {
       setPlayers({ ...state });
     };
 
-    network.onState = (newPlayers) => {
-      engine.setState(newPlayers);
+    network.onState = (newPlayers, projectiles) => {
+      engine.setState(newPlayers, projectiles);
       setPlayers({ ...newPlayers });
       if (network.playerId && newPlayers[network.playerId]) {
         setMyPlayer({ ...newPlayers[network.playerId], id: network.playerId });

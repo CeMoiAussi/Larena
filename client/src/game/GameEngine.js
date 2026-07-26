@@ -8,6 +8,7 @@ export default class GameEngine {
     canvas.width = ARENA_W;
     canvas.height = ARENA_H;
     this.players = {};
+    this.projectiles = [];
     this.myId = null;
     this.running = false;
     this.onClick = null;
@@ -24,7 +25,9 @@ export default class GameEngine {
     });
   }
 
-  setState(players) {
+  setState(players, projectiles) {
+    this.projectiles = (projectiles || []).map(p => ({ ...p }));
+
     for (const id in players) {
       const server = players[id];
       let local = this.players[id];
@@ -151,6 +154,8 @@ export default class GameEngine {
       if (!p.alive) continue;
       this.drawPlayer(p, id === this.myId);
     }
+
+    this.drawProjectiles();
   }
 
   drawPlayer(p, isMe) {
@@ -198,6 +203,27 @@ export default class GameEngine {
     ctx.fillRect(barX, barY, barW * hpPct, barH);
 
     ctx.restore();
+  }
+
+  drawProjectiles() {
+    const ctx = this.ctx;
+    for (const p of this.projectiles) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.icon, p.x, p.y);
+      ctx.restore();
+    }
   }
 
   getClassIcon(cls) {

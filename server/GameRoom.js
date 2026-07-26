@@ -1,7 +1,7 @@
 const CLASSES = {
-  warrior: { hp: 150, speed: 2, damage: 20, range: 50, attackCooldown: 800, color: '#e74c3c', label: 'Warrior' },
-  archer:  { hp: 100, speed: 3, damage: 15, range: 200, attackCooldown: 600, color: '#2ecc71', label: 'Archer' },
-  mage:    { hp: 80,  speed: 2.5, damage: 25, range: 150, attackCooldown: 1000, color: '#3498db', label: 'Mage' },
+  warrior: { hp: 150, speed: 3.5, damage: 20, range: 60, attackCooldown: 800, color: '#e74c3c', label: 'Warrior' },
+  archer:  { hp: 100, speed: 2.5, damage: 15, range: 500, attackCooldown: 1200, color: '#2ecc71', label: 'Archer', projSpeed: 10, projColor: '#2ecc71', projIcon: '🏹' },
+  mage:    { hp: 80,  speed: 2.0, damage: 25, range: 250, attackCooldown: 1500, color: '#3498db', label: 'Mage', projSpeed: 6, projColor: '#9b59b6', projIcon: '✦' },
 };
 
 const ARENA_W = 1000;
@@ -12,6 +12,8 @@ export default class GameRoom {
     this.id = id;
     this.io = io;
     this.players = new Map();
+    this.projectiles = [];
+    this.nextProjId = 0;
     this.tickInterval = null;
     this.tickRate = 33;
   }
@@ -19,9 +21,7 @@ export default class GameRoom {
   addPlayer(id, socketId, name, classType) {
     const cls = CLASSES[classType];
     const player = {
-      id,
-      socketId,
-      name,
+      id, socketId, name,
       class: classType,
       color: cls.color,
       x: Math.random() * (ARENA_W - 100) + 50,
@@ -32,6 +32,9 @@ export default class GameRoom {
       damage: cls.damage,
       range: cls.range,
       attackCooldown: cls.attackCooldown,
+      projSpeed: cls.projSpeed || 0,
+      projColor: cls.projColor || null,
+      projIcon: cls.projIcon || null,
       targetX: null,
       targetY: null,
       lastAttackTime: 0,
@@ -74,7 +77,11 @@ export default class GameRoom {
     const alive = [...this.players.values()].filter(p => p.alive);
 
     for (const p of alive) this.movePlayer(p);
-    for (const p of alive) this.autoAttack(p, alive, now);
+    for (const p of alive) this.attack(p, alive, now);
+    for (const proj of [...this.projectiles]) {
+      this.moveProjectile(proj);
+      this.checkProjectileHit(proj);
+    }
 
     this.broadcastState();
   }
@@ -96,8 +103,9 @@ export default class GameRoom {
     p.y = Math.max(20, Math.min(ARENA_H - 20, p.y));
   }
 
-  autoAttack(p, alive, now) {
+  attack(p, alive, now) {
     if (now - p.lastAttackTime < p.attackCooldown) return;
+
     let nearest = null;
     let nearestDist = Infinity;
     for (const other of alive) {
@@ -111,14 +119,76 @@ export default class GameRoom {
       }
     }
     if (!nearest || nearestDist > p.range) return;
+
     p.lastAttackTime = now;
-    nearest.hp -= p.damage;
-    if (nearest.hp <= 0) {
-      nearest.hp = 0;
-      nearest.alive = false;
-      p.kills++;
-      nearest.deaths++;
-      setTimeout(() => this.respawn(nearest), 3000);
+
+    if (p.projSpeed && p.projSpeed > 0) {
+      this.fireProjectile(p, nearest);
+    } else {
+      nearest.hp -= p.damage;
+      if (nearest.hp <= 0) {
+        nearest.hp = 0;
+        nearest.alive = false;
+        p.kills++;
+        nearest.deaths++;
+        setTimeout(() => this.respawn(nearest), 3000);
+      }
+    }
+  }
+
+  fireProjectile(owner, target) {
+    const proj = {
+      id: this.nextProjId++,
+      x: owner.x,
+      y: owner.y,
+      targetX: target.x,
+      targetY: target.y,
+      targetId: target.id,
+      ownerId: owner.id,
+      speed: owner.projSpeed,
+      damage: owner.damage,
+      color: owner.projColor,
+      icon: owner.projIcon,
+    };
+    this.projectiles.push(proj);
+  }
+
+  moveProjectile(proj) {
+    const dx = proj.targetX - proj.x;
+    const dy = proj.targetY - proj.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < proj.speed) {
+      this.projectiles = this.projectiles.filter(p => p.id !== proj.id);
+      return;
+    }
+    proj.x += (dx / dist) * proj.speed;
+    proj.y += (dy / dist) * proj.speed;
+    proj.x = Math.max(0, Math.min(ARENA_W, proj.x));
+    proj.y = Math.max(0, Math.min(ARENA_H, proj.y));
+  }
+
+  checkProjectileHit(proj) {
+    const target = this.players.get(proj.targetId);
+    if (!target || !target.alive) {
+      this.projectiles = this.projectiles.filter(p => p.id !== proj.id);
+      return;
+    }
+    const dx = proj.x - target.x;
+    const dy = proj.y - target.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 25) {
+      target.hp -= proj.damage;
+      if (target.hp <= 0) {
+        target.hp = 0;
+        target.alive = false;
+        const owner = this.players.get(proj.ownerId);
+        if (owner) {
+          owner.kills++;
+          target.deaths++;
+        }
+        setTimeout(() => this.respawn(target), 3000);
+      }
+      this.projectiles = this.projectiles.filter(p => p.id !== proj.id);
     }
   }
 
@@ -152,12 +222,23 @@ export default class GameRoom {
     return state;
   }
 
-  broadcastState() {
-    if (this.players.size === 0) return;
-    this.io.to(this.id).emit('state', { players: this.getState(), timestamp: Date.now() });
+  getProjectilesState() {
+    return this.projectiles.map(p => ({
+      id: p.id,
+      x: Math.round(p.x),
+      y: Math.round(p.y),
+      color: p.color,
+      icon: p.icon,
+      ownerId: p.ownerId,
+    }));
   }
 
-  getPlayerCount() {
-    return this.players.size;
+  broadcastState() {
+    if (this.players.size === 0) return;
+    this.io.to(this.id).emit('state', {
+      players: this.getState(),
+      projectiles: this.getProjectilesState(),
+      timestamp: Date.now(),
+    });
   }
 }
