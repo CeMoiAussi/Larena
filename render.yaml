@@ -1,12 +1,10 @@
 services:
   - type: web
     name: battle-arena-server
-    runtime: node
-    repo: https://github.com/CeMoiAussi/Larena
-    branch: main
+    env: node
+    region: ohio
     sourceDir: server
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /
     autoDeploy: true
-    plan: free
