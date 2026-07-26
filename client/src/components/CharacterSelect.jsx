@@ -6,6 +6,9 @@ const CLASSES = [
   { id: 'mage',    label: 'Mage',    hp: 80,  speed: 2.5, damage: 25, range: 'Ranged', color: '#3498db', icon: '✦' },
 ];
 
+const NAMES = ['Shadow', 'Storm', 'Blade', 'Fury', 'Wolf', 'Viper', 'Ghost', 'Thunder', 'Phoenix', 'Cobra',
+  'Raven', 'Titan', 'Vortex', 'Hammer', 'Sniper', 'Frost', 'Blaze', 'Stealth', 'Jaguar', 'Bolt'];
+
 export default function CharacterSelect({ onJoin }) {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -13,8 +16,8 @@ export default function CharacterSelect({ onJoin }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    onJoin(name.trim(), selected, roomId.trim() || 'default');
+    const finalName = name.trim() || NAMES[Math.floor(Math.random() * NAMES.length)] + '_' + Math.floor(Math.random() * 1000);
+    onJoin(finalName, selected, roomId.trim() || 'default');
   };
 
   return (

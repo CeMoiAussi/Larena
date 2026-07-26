@@ -15,7 +15,8 @@ export default function Battlefield({ network }) {
 
     engine.onClick = (x, y) => {
       network.sendInput(x, y);
-      engine.setLocalTarget(x, y);
+      const me = engine.players[engine.myId];
+      if (me) { me.targetX = x; me.targetY = y; }
     };
     engine.onSendInput = (x, y) => network.sendInput(x, y);
 
