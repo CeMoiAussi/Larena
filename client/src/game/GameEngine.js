@@ -47,7 +47,7 @@ export default class GameEngine {
         local.alive = server.alive;
         local.kills = server.kills;
         local.deaths = server.deaths;
-        local.speed = server.speed;
+        local.speed = server.speed ?? 2;
 
         if (!wasAlive && server.alive) {
           local.renderX = server.x;
@@ -66,7 +66,7 @@ export default class GameEngine {
         local.class = server.class;
         local.color = server.color;
         local.name = server.name;
-        local.speed = server.speed;
+        local.speed = server.speed ?? 2;
       }
     }
 
@@ -126,12 +126,13 @@ export default class GameEngine {
         continue;
       }
 
+      const speed = p.speed || 2;
       if (id === this.myId) {
-        const step = Math.min(p.speed * 60 * dt, dist);
+        const step = Math.min(speed * 60 * dt, dist);
         p.renderX += (dx / dist) * step;
         p.renderY += (dy / dist) * step;
       } else {
-        p.renderX += (dx / dist) * Math.min(dist * 0.25, p.speed * 60 * dt * 3);
+        p.renderX += (dx / dist) * Math.min(dist * 0.25, speed * 60 * dt * 3);
       }
     }
   }

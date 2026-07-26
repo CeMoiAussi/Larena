@@ -7,6 +7,7 @@ import GameRoom from './GameRoom.js';
 const app = express();
 app.use(cors());
 app.get('/', (req, res) => res.send('Battle Arena server running'));
+app.get('/version', (req, res) => res.json({ version: 2, status: 'client-prediction' }));
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: '*' },
