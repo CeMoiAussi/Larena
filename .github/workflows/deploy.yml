@@ -32,6 +32,8 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: client
+        env:
+          VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL || 'http://localhost:3001' }}
 
       - uses: actions/configure-pages@v4
 
