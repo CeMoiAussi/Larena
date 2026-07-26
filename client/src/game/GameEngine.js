@@ -12,7 +12,6 @@ export default class GameEngine {
     this.myId = null;
     this.running = false;
     this.onClick = null;
-    this.wasDead = false;
 
     canvas.addEventListener('click', (e) => {
       if (!this.onClick) return;
@@ -26,7 +25,17 @@ export default class GameEngine {
   }
 
   setState(players, projectiles) {
-    this.projectiles = (projectiles || []).map(p => ({ ...p }));
+    const oldProjs = {};
+    for (const p of this.projectiles) oldProjs[p.id] = p;
+
+    this.projectiles = (projectiles || []).map(p => {
+      const old = oldProjs[p.id];
+      return {
+        ...p,
+        renderX: old ? old.renderX : p.x,
+        renderY: old ? old.renderY : p.y,
+      };
+    });
 
     for (const id in players) {
       const server = players[id];
@@ -57,6 +66,17 @@ export default class GameEngine {
           local.renderY = server.y;
           local.targetX = null;
           local.targetY = null;
+        } else if (server.alive) {
+          const dx = server.x - local.renderX;
+          const dy = server.y - local.renderY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 2) {
+            local.renderX += dx * 0.1;
+            local.renderY += dy * 0.1;
+          } else {
+            local.renderX = server.x;
+            local.renderY = server.y;
+          }
         }
       } else {
         local.targetX = server.x;
@@ -138,6 +158,11 @@ export default class GameEngine {
         p.renderX += (dx / dist) * Math.min(dist * 0.25, speed * 60 * dt * 3);
       }
     }
+
+    for (const p of this.projectiles) {
+      p.renderX += (p.x - p.renderX) * 0.4;
+      p.renderY += (p.y - p.renderY) * 0.4;
+    }
   }
 
   draw() {
@@ -149,13 +174,13 @@ export default class GameEngine {
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, ARENA_W - 2, ARENA_H - 2);
 
+    this.drawProjectiles();
+
     for (const id in this.players) {
       const p = this.players[id];
       if (!p.alive) continue;
       this.drawPlayer(p, id === this.myId);
     }
-
-    this.drawProjectiles();
   }
 
   drawPlayer(p, isMe) {
@@ -210,7 +235,7 @@ export default class GameEngine {
     for (const p of this.projectiles) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+      ctx.arc(p.renderX, p.renderY, 7, 0, Math.PI * 2);
       ctx.fillStyle = p.color;
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.6)';
@@ -221,7 +246,7 @@ export default class GameEngine {
       ctx.font = '9px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(p.icon, p.x, p.y);
+      ctx.fillText(p.icon, p.renderX, p.renderY);
       ctx.restore();
     }
   }
